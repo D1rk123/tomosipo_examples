@@ -7,7 +7,6 @@ import ts_algorithms as tsa
 import numpy as np
 from tqdm import tqdm
 from tiff_handling import load_stack, save_stack
-from tomosipo.qt import animate
 
 # Reads the scanner settings file into a dictionary
 def parse_scan_settings(path):
@@ -38,43 +37,53 @@ def load_tiff_to_torch(path):
 
 
 if __name__ == "__main__":
+    # Path to the projection data
     data_path = Path("pepper_projections")
+    # Path to where the reconstruction will be saved
     save_path = Path("reconstruction")
-    dark_image = load_tiff_to_torch(data_path / "di000000.tif")
-    light_image = load_tiff_to_torch(data_path / "io000000.tif")
+    
+    # Load the dark field and flat field images separately
+    dark_field = load_tiff_to_torch(data_path / "di000000.tif")
+    flat_field = load_tiff_to_torch(data_path / "io000000.tif")
+    
+    # Load the projection data and apply the log preprocessing
+    y = torch.from_numpy(load_stack(data_path, prefix="scan", dtype=np.float32, stack_axis=1, range_stop=-1))
+    preprocess_in_place(y, dark_field, flat_field)
+    print("Finished loading and preprocessing")
+    
+    # The function parse_scan_settings reads the scan settings.txt into a dictionary
     scan_settings = parse_scan_settings(data_path / "scan settings.txt")
+    # Read the distances and pixel size from the file
     src_det_dist = float(scan_settings["SDD"])
     src_obj_dist = float(scan_settings["SOD"])
     pixel_size = float(scan_settings["Binned pixel size"])
-    pixel_width = dark_image.shape[1]
-    pixel_height = dark_image.shape[0]
+    # Derive the resolution from the input data
+    detector_hor_res = y.shape[2]
+    detector_ver_res = y.shape[0]
+    num_angles = y.shape[1]
 
-    y = torch.from_numpy(load_stack(data_path, prefix="scan", dtype=np.float32, stack_axis=1, range_stop=-1))
-    print("finished loading")
-    preprocess_in_place(y, dark_image, light_image)
-    print("finished preprocessing")
-
+    # Make volume and projection geometries with the parameters 
     vg = ts.volume(
-        shape=(pixel_height, pixel_width, pixel_width),
-        size=np.array((pixel_height, pixel_width, pixel_width))*pixel_size,
-        pos=0
+        shape=(detector_ver_res, detector_hor_res, detector_hor_res),
+        size=np.array((detector_ver_res, detector_hor_res, detector_hor_res))*pixel_size
     )
     pg = ts.cone(
-        angles=y.shape[1],
-        shape=(pixel_height, pixel_width),
-        size=np.array((pixel_height, pixel_width))*pixel_size,
+        angles=num_angles,
+        shape=(detector_ver_res, detector_hor_res),
+        size=np.array((detector_ver_res, detector_hor_res))*pixel_size,
         src_det_dist = src_det_dist,
         src_orig_dist = src_obj_dist
     )
+    # Combine the geometries into an operator
     op = ts.operator(vg, pg)
     
-    s = ts.scale(1/100)
-    anim = animate(s*vg, s*pg)
-    anim.save("flexray.mp4")
-
-    #dev = torch.device("cuda")
-    #y.cuda()
+    # Make an FDK reconstruction
+    # If you are using large projection data you may want to use overwrite_y=True
     reconstruction = tsa.fdk(A=op, y=y, overwrite_y=True)
+    print("Finished reconstruction")
+    # Variable y was overwritten with a filtered version of y because overwrite_y=True
+    # You probably don't want to use this so delete y to free up memory
+    del y
 
     save_stack(save_path, reconstruction.numpy(), exist_ok=True)
 
