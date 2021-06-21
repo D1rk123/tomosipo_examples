@@ -75,11 +75,11 @@ if __name__ == "__main__":
         src_orig_dist = src_obj_dist
     )
     # Combine the geometries into an operator
-    op = ts.operator(vg, pg)
+    A = ts.operator(vg, pg)
     
     # Make an FDK reconstruction
     # If you are using large projection data you may want to use overwrite_y=True
-    reconstruction = tsa.fdk(A=op, y=y, overwrite_y=True)
+    reconstruction = tsa.fdk(A=A, y=y, overwrite_y=True)
     print("Finished reconstruction")
     # Variable y was overwritten with a filtered version of y because overwrite_y=True
     # You probably don't want to use this so delete y to free up memory
