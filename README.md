@@ -1,8 +1,7 @@
 # tomosipo_examples
-Examples using the Tomosipo library, made for the tutorial given at the CWI on 21-Jun-2021.
 
-## Tutorial slides
-The slides of the tutorial that was given at the CWI are included in the repository as Tomosipo_tutorial_slides.pdf.
+## CWI tutorial
+This repository contains examples showing the functionality of the Tomosipo library, and it was made for the tutorial given at the CWI on 21-Jun-2021. The slides of the tutorial that was given at the CWI are included in the repository as Tomosipo_tutorial_slides.pdf. You can also watch a recording of the tutorial on youtube: https://www.youtube.com/watch?v=biStJB1zb-Y
 
 ## Examples
 1. **2d_projection.py** Minimal example of how to use Tomosipo, showing how to project and backproject with a 2D parallel beam geometry.
